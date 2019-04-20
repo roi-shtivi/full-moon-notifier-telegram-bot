@@ -1,7 +1,6 @@
 import pickle
 from threading import Event
 from time import time
-from datetime import timedelta
 
 
 JOBS_PICKLE = 'job_tuples.pickle'

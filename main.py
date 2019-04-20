@@ -5,8 +5,9 @@ from telegram.ext import Updater, CommandHandler
 import telegram.error
 
 import jobs_pickle
+import subscribers_db
 
-subscribers_chat_ids = []
+s_db = subscribers_db.SubscribersDatabase()
 full_moon_times = [datetime.datetime.now() + datetime.timedelta(0, 10),
                    datetime.datetime.now() + datetime.timedelta(0, 20),
                    ]
@@ -15,18 +16,18 @@ full_moon_times = [datetime.datetime.now() + datetime.timedelta(0, 10),
 def start(update, context):
     chat_id = context.message.chat_id
     update.send_message(chat_id=chat_id, text="Welcome")
-    subscribers_chat_ids.append(chat_id)
+    s_db.insert(chat_id)
 
 
 def broadcast(bot, job):
     time = job.context['time']
-    for sub in subscribers_chat_ids:
+    for chat_id in s_db.get_all_subscribers():
         try:
-            bot.send_message(chat_id=sub, text="Raise your head to the sky and watch the full moon. "
-                                               "The exact time is {}".format(time))
+            bot.send_message(chat_id=chat_id,
+                             text="Raise your head to the sky and watch the full moon. "
+                                  "The exact time is {}".format(time))
         except telegram.error.Unauthorized:
-            subscribers_chat_ids.remove(sub)
-            print(subscribers_chat_ids)
+            s_db.delete(chat_id)
 
 
 def set_jobs(job_queue, times):
@@ -42,7 +43,7 @@ def main():
     jq = updater.job_queue
 
     # Periodically save jobs
-    jq.run_repeating(jobs_pickle.save_jobs_job, datetime.timedelta(seconds=10))
+    jq.run_repeating(jobs_pickle.save_jobs_job, datetime.timedelta(minutes=10))
 
     try:
         jobs_pickle.load_jobs(jq)
