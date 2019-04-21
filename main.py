@@ -30,10 +30,12 @@ def broadcast(bot, job):
             s_db.delete(chat_id)
 
 
-def set_jobs(job_queue, times):
-    for time in times:
-        job = job_queue.run_once(broadcast, time, context={'time': time})
-        job.name = str(time)
+def set_jobs(job_queue):
+    with open('full_moon_times.txt') as f:
+        for str_time in [line.rstrip('\n') for line in f]:
+            time = datetime.datetime.strptime(str_time, '%Y %b  %d %H:%M  %a')
+            job = job_queue.run_once(broadcast, time, context={'time': time})
+            job.name = str_time
 
 
 def main():
@@ -50,7 +52,7 @@ def main():
 
     except FileNotFoundError:
         # First run
-        set_jobs(jq, full_moon_times)
+        set_jobs(jq)
 
     updater.start_polling()
     updater.idle()
