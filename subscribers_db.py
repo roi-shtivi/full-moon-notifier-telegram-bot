@@ -10,7 +10,7 @@ class SubscribersDatabase:
 
     def create_table(self):
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS subscribers
-                               (chat_id)''')
+                               (chat_id type UNIQUE)''')
 
     def insert(self, chat_id):
         self.cursor.execute('''INSERT INTO subscribers VALUES ({})'''.format(chat_id))
