@@ -1,5 +1,6 @@
 import os
 import datetime
+import argparse
 
 from telegram.ext import Updater, CommandHandler
 import telegram.error
@@ -11,6 +12,18 @@ s_db = subscribers_db.SubscribersDatabase()
 full_moon_times = [datetime.datetime.now() + datetime.timedelta(0, 10),
                    datetime.datetime.now() + datetime.timedelta(0, 20),
                    ]
+
+
+def parse_arguments():
+    """
+    Parses scraper arguments
+    """
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        'api_key',
+        help="The bot api key or a symbolic name (PROD, DEV)")
+    return parser.parse_args()
 
 
 def start(update, context):
@@ -31,15 +44,24 @@ def broadcast(bot, job):
 
 
 def set_jobs(job_queue):
-    with open('full_moon_times.txt') as f:
+    with open('fake_times.txt') as f:
         for str_time in [line.rstrip('\n') for line in f]:
             time = datetime.datetime.strptime(str_time, '%Y %b  %d %H:%M  %a')
             job = job_queue.run_once(broadcast, time, context={'time': time})
             job.name = str_time
 
 
+def get_api_key(key):
+    return {
+        'PROD': os.environ['full_moon_notifier_bot_api_token'],
+        'DEV': os.environ['full_moon_notifier_dev_bot_api_token']
+    }.get(key, key)
+
+
 def main():
-    updater = Updater(os.environ['full_moon_notifier_bot_api_token'])
+    args = parse_arguments()
+    api_key = get_api_key(args.api_key)
+    updater = Updater(api_key)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
     jq = updater.job_queue
