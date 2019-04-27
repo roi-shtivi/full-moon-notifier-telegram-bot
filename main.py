@@ -37,17 +37,23 @@ def broadcast(bot, job):
     for chat_id in s_db.get_all_subscribers():
         try:
             bot.send_message(chat_id=chat_id,
-                             text="Raise your head to the sky and watch the full moon. "
-                                  "The exact time is {}".format(time))
+                             text="Raise your head to the sky today and watch the full moon. "
+                                  "The exact time is {}".format(time.strftime('%d/%m/%y %M:%H')))
         except telegram.error.Unauthorized:
             s_db.delete(chat_id)
 
 
 def set_jobs(job_queue):
-    with open('fake_times.txt') as f:
+    with open('full_moon_times.txt') as f:
         for str_time in [line.rstrip('\n') for line in f]:
             time = datetime.datetime.strptime(str_time, '%Y %b  %d %H:%M  %a')
-            job = job_queue.run_once(broadcast, time, context={'time': time})
+            # after midday (12:00 - 23:59) alert in the same day at 18:00
+            if time.hour >= 12:
+                alert_time = time.replace(hour=18, minute=0)
+            # before midday (00:00 - 11:59) alert in the yesterday at 18:00
+            else:
+                alert_time = (time - datetime.timedelta(1)).replace(hour=18, minute=0)
+            job = job_queue.run_once(broadcast, alert_time, context={'time': time})
             job.name = str_time
 
 
@@ -61,6 +67,7 @@ def get_api_key(key):
 def main():
     args = parse_arguments()
     api_key = get_api_key(args.api_key)
+
     updater = Updater(api_key)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
