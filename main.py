@@ -1,5 +1,6 @@
 import os
 import datetime
+import argparse
 
 from telegram.ext import Updater, CommandHandler
 import telegram.error
@@ -13,6 +14,18 @@ full_moon_times = [datetime.datetime.now() + datetime.timedelta(0, 10),
                    ]
 
 
+def parse_arguments():
+    """
+    Parses scraper arguments
+    """
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        'api_key',
+        help="The bot api key or a symbolic name (PROD, DEV)")
+    return parser.parse_args()
+
+
 def start(update, context):
     chat_id = context.message.chat_id
     update.send_message(chat_id=chat_id, text="Welcome")
@@ -24,8 +37,8 @@ def broadcast(bot, job):
     for chat_id in s_db.get_all_subscribers():
         try:
             bot.send_message(chat_id=chat_id,
-                             text="Raise your head to the sky and watch the full moon. "
-                                  "The exact time is {}".format(time))
+                             text="Raise your head to the sky today and watch the full moon. "
+                                  "The exact time is {}".format(time.strftime('%d/%m/%y %H:%M')))
         except telegram.error.Unauthorized:
             s_db.delete(chat_id)
 
@@ -33,13 +46,31 @@ def broadcast(bot, job):
 def set_jobs(job_queue):
     with open('full_moon_times.txt') as f:
         for str_time in [line.rstrip('\n') for line in f]:
-            time = datetime.datetime.strptime(str_time, '%Y %b  %d %H:%M  %a')
-            job = job_queue.run_once(broadcast, time, context={'time': time})
+            time = datetime.datetime.strptime(str_time, '%Y %b %d %H:%M  %a')
+            # after midday (12:00 - 23:59) alert in the same day at 18:00
+            if time.hour >= 12:
+                alert_time = time.replace(hour=18, minute=0)
+            # before midday (00:00 - 11:59) alert in the yesterday at 18:00
+            else:
+                alert_time = (time - datetime.timedelta(1)).replace(hour=18, minute=0)
+            if alert_time < datetime.datetime.now():
+                continue
+            job = job_queue.run_once(broadcast, alert_time, context={'time': time})
             job.name = str_time
 
 
+def get_api_key(key):
+    return {
+        'PROD': os.environ['full_moon_notifier_bot_api_token'],
+        'DEV': os.environ['full_moon_notifier_dev_bot_api_token']
+    }.get(key, key)
+
+
 def main():
-    updater = Updater(os.environ['full_moon_notifier_bot_api_token'])
+    args = parse_arguments()
+    api_key = get_api_key(args.api_key)
+
+    updater = Updater(api_key)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
     jq = updater.job_queue
