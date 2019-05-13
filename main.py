@@ -60,17 +60,26 @@ def set_jobs(job_queue):
 
 
 def get_api_key(key):
-    return {
-        'PROD': os.environ['full_moon_notifier_bot_api_token'],
-        'DEV': os.environ['full_moon_notifier_dev_bot_api_token']
-    }.get(key, key)
+    try:
+        if key == 'PROD':
+            return os.environ['full_moon_notifier_bot_api_token']
+        elif key == 'DEV':
+            return os.environ['full_moon_notifier_dev_bot_api_token']
+    except KeyError:
+        print("Please set {} to be an environment variable with appropriate api key".format(key))
+        return
+    return key
 
 
 def main():
     args = parse_arguments()
     api_key = get_api_key(args.api_key)
 
-    updater = Updater(api_key)
+    try:
+        updater = Updater(api_key)
+    except telegram.error.InvalidToken:
+        print('{} is an invalid token, exiting.'.format(api_key))
+        return
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
     jq = updater.job_queue
