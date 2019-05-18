@@ -28,7 +28,10 @@ def parse_arguments():
 
 def start(update, context):
     chat_id = context.message.chat_id
-    update.send_message(chat_id=chat_id, text="Welcome")
+    update.send_message(chat_id=chat_id,
+                        text=
+                        "Welcome, you'll now be reminded when the moon will be fully visible from earth,"
+                        " to unsubscirbe just block me.")
     s_db.insert(chat_id)
 
 
